@@ -10,23 +10,13 @@ import matplotlib.pyplot as plt
 from keras import models
 from keras.layers import Dense, LeakyReLU, Activation, Conv1D, Flatten, LSTM, Reshape
 
-input_count = 16
+input_count = 64
 
 model = models.Sequential()
-# model.add(Conv1D(64, kernel_size=2, strides=2, input_shape=(input_count, 1)))
-# model.add(Conv1D(32, kernel_size=2, strides=4))
-# model.add(Conv1D(32, kernel_size=2, strides=2))
-# model.add(Conv1D(32, kernel_size=2, strides=2))
-# model.add(Conv1D(16, kernel_size=1, strides=2))
-# model.add(Flatten())
-# model.add(Reshape((64, 1)))
 model.add(LSTM(input_count, input_shape=(input_count, 1)))
-# model.add(Dense(50, activation='relu', input_shape=(input_count, 1)))
-#model.add(Dense(1, activation='relu', input_shape=(input_count, 1)))
-# model.add(Flatten(input_shape=(input_count, 1)))
-# model.add(Dense(64, activation='relu'))
-#model.add(Dense(512, activation='relu'))
-#model.add(Dense(256, activation='relu'))
+# model.add(Reshape(target_shape=(1, input_count)))
+# model.add(LSTM(input_count))
+model.add(Dense(input_count, activation='relu'))
 model.add(Dense(input_count, activation='linear'))
 
 
@@ -57,15 +47,12 @@ oszilators = [sin, square, saw]
 #oszilators = [sin]
 
 # Generate dummy data
-duration = 1  # seconds
+duration = 20.0 / input_count  # seconds
 fs = 44100
-samples = int(fs * duration)
+samples = int(fs * duration) * input_count
 #base_pitch = 220 #hz
 #relative_pitch = 0*base_pitch
 data = np.array([i/fs for i in range(samples)])
-
-train_x = []
-train_y = []
 
 def sample(pitch, offset, count, osz, amplitude = 1):
   global fs
@@ -74,41 +61,37 @@ def sample(pitch, offset, count, osz, amplitude = 1):
 def sum_samples(*samples):
   return [sanitize(sum([sample[i] for sample in samples]) / len(samples)) for i in range(len(samples[0]))]
 
-for i in range(samples):
-  pitch = 220
-  offset = np.random.rand() * fs
-  oszilator = random.choice(oszilators)
-  amplitude = 1
+pitch = 220
+offset = np.random.rand() * fs
+oszilator = random.choice(oszilators)
+amplitude = 1
 
-  x1 = sample(pitch, offset, input_count, oszilator, amplitude)
-  y1 = sample(pitch, offset + input_count, input_count, oszilator, amplitude)
+x1 = sample(pitch, offset, samples, oszilator, amplitude)
+y1 = sample(pitch, offset + samples, samples, oszilator, amplitude)
 
-  pitch = 329.63
-  offset = np.random.rand() * fs
-  oszilator = random.choice(oszilators)
-  amplitude = 1
+pitch = 329.63
+offset = np.random.rand() * fs
+oszilator = random.choice(oszilators)
+amplitude = 1
 
-  x2 = sample(pitch, offset, input_count, oszilator, amplitude)
-  y2 = sample(pitch, offset + input_count, input_count, oszilator, amplitude)
+x2 = sample(pitch, offset, samples, oszilator, amplitude)
+y2 = sample(pitch, offset + samples, samples, oszilator, amplitude)
 
-  pitch = 554.37
-  offset = np.random.rand() * fs
-  oszilator = random.choice(oszilators)
-  amplitude = 1
+pitch = 554.37
+offset = np.random.rand() * fs
+oszilator = random.choice(oszilators)
+amplitude = 1
 
-  x3 = sample(pitch, offset, input_count, oszilator, amplitude)
-  y3 = sample(pitch, offset + input_count, input_count, oszilator, amplitude)
-
-  train_x.append(sum_samples(x1, x2, x3))
-  train_y.append(sum_samples(y1, y2, y3))
+x3 = sample(pitch, offset, samples, oszilator, amplitude)
+y3 = sample(pitch, offset + samples, samples, oszilator, amplitude)
 
 # plt.plot(range(input_count), train_x[0])
 # plt.plot(range(input_count), train_x[1])
 # plt.plot(range(input_count), train_x[2])
 # plt.show()
 
-train_x = np.array(train_x).reshape(samples, input_count, 1)
-train_y = np.array(train_y)
+train_x = np.array(sum_samples(x1, x2, x3)).reshape(int(samples / input_count), input_count, 1)
+train_y = np.array(sum_samples(y1, y2, y3)).reshape(int(samples / input_count), input_count)
 
 def generate(model):
   global fs, input_count
@@ -149,14 +132,14 @@ def generate(model):
 
 while True:
   model.fit(train_x, train_y, epochs=1, batch_size=32, shuffle=False)
-  sound_data, correct_sound = generate(model)
+  # sound_data, correct_sound = generate(model)
   # plt.plot(range(len(sound_data) + len(input_data)), input_data + sound_data)
   model.save('last_model')
   # plt.plot([i + len(input_data) for i in range(len(sound_data))], sound_data)
   # plt.plot(range(len(input_data)), input_data)
   # plt.show()
   #sd.play(sound_data + sound_data + sound_data + sound_data + sound_data)
-  sd.play(correct_sound + sound_data)
+  #sd.play(correct_sound + sound_data)
 
 # input_data = np.array([i/fs for i in range(samples)])
 # prediction = model.predict(input_data).reshape(samples)
